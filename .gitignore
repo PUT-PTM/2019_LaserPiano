@@ -1,0 +1,11 @@
+*.settings
+/LaserPiano/Drivers
+/LaserPiano/Debug
+/LaserPiano/startup
+.git
+*.cproject
+*.mxproject
+/LaserPiano/.project
+*.ld
+*.xml
+*.cfg
