@@ -51,8 +51,14 @@ DMA_HandleTypeDef hdma_spi3_tx;
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 #define PI 3.14159f
-#define F_SAMPLE		48000.0f
-#define F_OUT				1760.0f
+#define F_SAMPLE			48000.0f
+//#define F_OUT				1760.0f
+#define OCTAVE				8
+float mySinVal;
+float sample_dt;
+uint16_t sample_N[OCTAVE];
+int16_t dataI2S[8][100];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -63,43 +69,59 @@ static void MX_I2C1_Init(void);
 static void MX_I2S3_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+void generate_samples(int fout[OCTAVE])
+{
 
+	for(int k =0; k<OCTAVE; k++)
+	  {
+		sample_dt = fout[k]/F_SAMPLE;
+		sample_N[k] = F_SAMPLE/fout[k];
+		for(uint16_t i=0; i<sample_N[k]; i++)
+	  	{
+	  		mySinVal = sinf(i*2*PI*sample_dt);
+	  		dataI2S[k][i*2] = (mySinVal )*8000;    //Right data (0 2 4 6 8 10 12)
+	  		dataI2S[k][i*2 + 1] =(mySinVal )*8000; //Left data  (1 3 5 7 9 11 13)
+	  	}
+	  }
+
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-float mySinVal;
-float sample_dt;
-uint16_t sample_N;
-uint16_t i_t;
 
-uint32_t myDacVal;
-
-int16_t dataI2S[100];
+int16_t dataI2S[8][100];
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+	  CS43_Enable_RightLeft(CS43_RIGHT_LEFT);
 
 	if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
 	{
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[0], sample_N[0]*2);
 	}
 	else if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
 	{
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
+	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[1], sample_N[1]*2);
 	}
 	else if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_5) == GPIO_PIN_RESET)
 	{
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
+	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[2], sample_N[2]*2);
 	}
 	else if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_6) == GPIO_PIN_RESET)
 	{
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[3], sample_N[3]*2);
 	}
+	else
+		  CS43_Enable_RightLeft(CS43_MUTE);
 
 }
 
@@ -113,10 +135,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	sample_dt = F_OUT/F_SAMPLE;
-	sample_N = F_SAMPLE/F_OUT;
   /* USER CODE END 1 */
-
+	int fout[OCTAVE] = {1000,5000,10000,15000,20000,25000,30000,35000};
+	generate_samples(fout);
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -143,15 +164,6 @@ int main(void)
   CS43_SetVolume(40);
   CS43_Enable_RightLeft(CS43_RIGHT_LEFT);
   CS43_Start();
-
-  for(uint16_t i=0; i<sample_N; i++)
-  	{
-  		mySinVal = sinf(i*2*PI*sample_dt);
-  		dataI2S[i*2] = (mySinVal )*8000;    //Right data (0 2 4 6 8 10 12)
-  		dataI2S[i*2 + 1] =(mySinVal )*8000; //Left data  (1 3 5 7 9 11 13)
-  	}
-
-  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S, sample_N*2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
