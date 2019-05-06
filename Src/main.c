@@ -135,9 +135,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+	int fout[OCTAVE] = {131,147,165,175,196,220,233,247};
+		generate_samples(fout);
   /* USER CODE END 1 */
-	int fout[OCTAVE] = {1000,5000,10000,15000,20000,25000,30000,35000};
-	generate_samples(fout);
+
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -335,7 +336,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : PE3 PE4 PE5 PE6 */
   GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
