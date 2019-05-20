@@ -35,9 +35,11 @@ It is also needed to power up the laser diodes with an external power supply.
 ## How to Compile
 Run program in System Workbench Developers C/C++ for STM32.
 ## Future improvements
-
+Making more compact box.
+Adding complex sounds.
+Developing the number of notes.
 ## Attributions
-
+CS43L22 module library - [CS43L22 Tutorial](https://www.youtube.com/watch?v=QIPQOnVablY)
 ## Licence
 Our project is based on [MIT](https://opensource.org/licenses/mit-license.php) license.
 ## Credits
