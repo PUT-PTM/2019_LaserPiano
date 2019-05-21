@@ -48,6 +48,8 @@ I2C_HandleTypeDef hi2c1;
 I2S_HandleTypeDef hi2s3;
 DMA_HandleTypeDef hdma_spi3_tx;
 
+TIM_HandleTypeDef htim4;
+
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 #define PI 3.14159f
@@ -58,7 +60,9 @@ float mySinVal;
 float sample_dt;
 uint16_t sample_N[OCTAVE];
 int16_t dataI2S[8][100];
-
+int reset[8];	//when equals 0 turns of sound
+int onesecond = 150; // 100/100Hz
+int playing = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -67,6 +71,7 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2S3_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 void generate_samples(int fout[OCTAVE])
@@ -89,40 +94,100 @@ void generate_samples(int fout[OCTAVE])
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
+{
 
+	if(htim->Instance == TIM4)
+	{
+
+		playing = 0;
+		for(int i= 0; i < 8; i++)
+		{
+			if(reset[i]>0)
+		{
+			reset[i]--;
+		  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[i], sample_N[i]*2);
+			//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
+		  	playing = i + 5;
+		  	break;
+		}
+		}
+		if(!playing)
+		{
+			HAL_I2S_DMAStop(&hi2s3);
+		}
+	}
+}
 
 int16_t dataI2S[8][100];
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)//Turns the sound on
 {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+
+	if(!playing)
+	{HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-	  CS43_Enable_RightLeft(CS43_RIGHT_LEFT);
-
+	//CS43_Enable_RightLeft(CS43_RIGHT_LEFT);
+	//HAL_I2S_DMAStop(&hi2s3);
 	if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
-	{
+	{ //Note C6
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
 	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[0], sample_N[0]*2);
+	  	reset[0] = onesecond;	// turns of sound after one second
 	}
 	else if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
 	{
+		//Note D6
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
 	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[1], sample_N[1]*2);
+	  	reset[1] = onesecond;
 	}
 	else if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_5) == GPIO_PIN_RESET)
 	{
+		//Note E6
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
 	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[2], sample_N[2]*2);
+	  	reset[2] = onesecond;
 	}
 	else if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_6) == GPIO_PIN_RESET)
 	{
+		//Note F6
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
 	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[3], sample_N[3]*2);
+	  	reset[3] = onesecond;
 	}
-	else
-		  CS43_Enable_RightLeft(CS43_MUTE);
-
+	else if(HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_8) == GPIO_PIN_RESET)
+	{
+		//Note G6
+		//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[4], sample_N[4]*2);
+	  	reset[4] = onesecond;
+	}
+	else if(HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_9) == GPIO_PIN_RESET)
+	{
+		//Note A6
+		//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[5], sample_N[5]*2);
+	  	reset[5] = onesecond;
+	}
+	else if(HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_10) == GPIO_PIN_RESET)
+	{
+		//Note H6
+		//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[6], sample_N[6]*2);
+	  	reset[6] = onesecond;
+	}
+	else if(HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_11) == GPIO_PIN_RESET)
+	{
+		//Note C7
+		//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[7], sample_N[7]*2);
+	  	reset[7] = onesecond;
+	}
+	//else
+		//HAL_I2S_DMAStop(&hi2s3);
+	}
 }
 
 
@@ -135,8 +200,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	int fout[OCTAVE] = {131,147,165,175,196,220,233,247};
+	int fout[OCTAVE] = {1047,1175,1319,1397,1568,1760,1976,2093};
 		generate_samples(fout);
+  for(int i=0;i<8;i++)
+  {
+	  reset[i]=0;
+  }
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -160,11 +229,13 @@ int main(void)
   MX_DMA_Init();
   MX_I2C1_Init();
   MX_I2S3_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   CS43_Init(hi2c1, MODE_I2S);
-  CS43_SetVolume(40);
+  CS43_SetVolume(80);
   CS43_Enable_RightLeft(CS43_RIGHT_LEFT);
   CS43_Start();
+  HAL_TIM_Base_Start_IT(&htim4);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -298,6 +369,51 @@ static void MX_I2S3_Init(void)
 
 }
 
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 167;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 999;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+
+}
+
 /** 
   * Enable DMA controller clock
   */
@@ -340,6 +456,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : PD8 PD9 PD10 PD11 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
   /*Configure GPIO pins : PD12 PD13 PD14 PD15 */
   GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -363,6 +485,9 @@ static void MX_GPIO_Init(void)
 
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
