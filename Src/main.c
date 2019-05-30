@@ -55,14 +55,25 @@ TIM_HandleTypeDef htim4;
 #define PI 3.14159f
 #define F_SAMPLE			48000.0f
 //#define F_OUT				1760.0f
-#define OCTAVE				8
+#define OCTAVE				36
 float mySinVal;
 float sample_dt;
 uint16_t sample_N[OCTAVE];
-int16_t dataI2S[8][100];
-int reset[8];	//when equals 0 turns of sound
-int onesecond = 150; // 100/100Hz
+int16_t dataI2S[OCTAVE][100];
+int reset[8];	// when equals 0 turns of sound
+int onesecond = 300; // 100/100Hz
 int playing = 0;
+int oldNotes[2];
+int resetNotes[2];
+#define C6 (HAL_GPIO_ReadPin(GPIOE,GPIO_PIN_3))
+#define D6 (HAL_GPIO_ReadPin(GPIOE,GPIO_PIN_4))
+#define E6 (HAL_GPIO_ReadPin(GPIOE,GPIO_PIN_5))
+#define F6 (HAL_GPIO_ReadPin(GPIOE,GPIO_PIN_6))
+#define G6 (HAL_GPIO_ReadPin(GPIOD,GPIO_PIN_8))
+#define A6 (HAL_GPIO_ReadPin(GPIOD,GPIO_PIN_9))
+#define H6 (HAL_GPIO_ReadPin(GPIOD,GPIO_PIN_10))
+#define C7 (HAL_GPIO_ReadPin(GPIOD,GPIO_PIN_11))
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -90,6 +101,121 @@ void generate_samples(int fout[OCTAVE])
 	  }
 
 }
+
+
+
+
+void calculateNotes(int toReturn[28], int fout[OCTAVE])
+{
+	int x=0;
+	for(int j =0; j<8; j++) //calculates 28 combinations of notes
+	{
+			for(int k=j+1; k<8; k++)
+			{
+				toReturn[x++]=abs(fout[j]-fout[k]);
+			}
+	}
+	/*
+
+	toReturn[X]=abs(fout[Y]-fout[Z]);
+
+
+	toReturn[0]=abs(fout[0]-fout[1]);
+	toReturn[1]=abs(fout[0]-fout[2]);
+	toReturn[2]=abs(fout[0]-fout[3]);
+	toReturn[3]=abs(fout[0]-fout[4]);
+	toReturn[4]=abs(fout[0]-fout[5]);
+	toReturn[5]=abs(fout[0]-fout[6]);
+	toReturn[6]=abs(fout[0]-fout[7]);
+
+	toReturn[7]=abs(fout[1]-fout[2]);
+	toReturn[8]=abs(fout[1]-fout[3]);
+	toReturn[9]=abs(fout[1]-fout[4]);
+	toReturn[10]=abs(fout[1]-fout[5]);
+	toReturn[11]=abs(fout[1]-fout[6]);
+	toReturn[12]=abs(fout[1]-fout[7]);
+
+
+	toReturn[13]=abs(fout[2]-fout[3]);
+	toReturn[14]=abs(fout[2]-fout[4]);
+	toReturn[15]=abs(fout[2]-fout[5]);
+	toReturn[16]=abs(fout[2]-fout[6]);
+	toReturn[17]=abs(fout[2]-fout[7]);
+
+	toReturn[18]=abs(fout[3]-fout[4]);
+	toReturn[19]=abs(fout[3]-fout[5]);
+	toReturn[20]=abs(fout[3]-fout[6]);
+	toReturn[21]=abs(fout[3]-fout[7]);
+
+
+	toReturn[22]=abs(fout[4]-fout[5]);
+	toReturn[23]=abs(fout[4]-fout[6]);
+	toReturn[24]=abs(fout[4]-fout[7]);
+
+
+	toReturn[25]=abs(fout[5]-fout[6]);
+	toReturn[26]=abs(fout[5]-fout[7]);
+
+
+	toReturn[27]=abs(fout[6]-fout[7]);
+
+*/
+
+
+}
+
+int calculateNoteCobination(int note1, int note2)
+{
+	if(note1>note2)
+	{
+		note1 = note1^note2;
+		note2 = note2^note1;
+		note1 = note1^note2;
+	}
+	if(note2==0)
+	{
+		return note1 - 1;
+	}
+	else if(note2==1)
+	{
+		return note1 + 5;
+	}
+	else if(note2==2)
+	{
+		return note1 + 10;
+	}
+	else if(note2==3)
+	{
+		return note1 + 14;
+	}
+	else if(note2==4)
+	{
+		return note1 + 17;
+	}
+	else if(note2==5)
+	{
+		return note1 + 19;
+	}
+	else if(note2==6)
+	{
+		return note1 + 20;
+	}
+}
+
+void switchNotes(int note1, int note2)
+{
+	HAL_I2S_DMAStop(&hi2s3);
+	if(note2 < 0 && note1>=0)
+	{
+		HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[note1], sample_N[note1]*2);
+	}
+	else if(note1>=0 && note2>=0)
+	{
+	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[calculateNoteCobination(note1, note2)],
+	  			sample_N[calculateNoteCobination(note1, note2)]*2);
+	}
+}
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -99,94 +225,100 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 
 	if(htim->Instance == TIM4)
 	{
-
-		playing = 0;
-		for(int i= 0; i < 8; i++)
+		for(int i = 0; i < 8; i++)
 		{
-			if(reset[i]>0)
-		{
-			reset[i]--;
-		  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[i], sample_N[i]*2);
-			//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
-		  	playing = i + 5;
-		  	break;
+			if(reset[i]>=0)
+			{
+				reset[i]--;
+			}
 		}
-		}
-		if(!playing)
+		for(int i = 0; i < 8; i++)
 		{
-			HAL_I2S_DMAStop(&hi2s3);
+				if(reset[i] < 0)
+				{
+					if(resetNotes[0] == i)
+					{
+						if(resetNotes[1]>=0)
+						{
+							resetNotes[0]=resetNotes[1];
+							resetNotes[1]=-1;
+						}
+						else
+						{
+							resetNotes[0]=-1;
+						}
+					}
+					else if(resetNotes[1] == i)
+					{
+						resetNotes[1]=-1;
+					}
+				}
+			}
+		if ((oldNotes[0]!=resetNotes[0]) || (oldNotes[1]!=resetNotes[1]))
+		{
+			oldNotes[0] = resetNotes[0];
+			oldNotes[1] = resetNotes[1];
+			switchNotes(resetNotes[0], resetNotes[1]);
 		}
 	}
 }
 
-int16_t dataI2S[8][100];
+void setReset(int i)
+{
+	if(resetNotes[0] == -1)
+	{
+		resetNotes[0] = i;
+		reset[i] = onesecond;	// turns of sound after one second
+	}
+	else if(resetNotes[1] == -1)
+	{
+		resetNotes[1] = i;
+		reset[i] = onesecond;
+	}
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)//Turns the sound on
 {
 
-	if(!playing)
-	{HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-	//CS43_Enable_RightLeft(CS43_RIGHT_LEFT);
-	//HAL_I2S_DMAStop(&hi2s3);
-	if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3) == GPIO_PIN_RESET)
-	{ //Note C6
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
-	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[0], sample_N[0]*2);
-	  	reset[0] = onesecond;	// turns of sound after one second
+	if(C6 == GPIO_PIN_RESET)
+	{
+		//Note C6
+		setReset(0);
 	}
-	else if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_4) == GPIO_PIN_RESET)
+	if(D6 == GPIO_PIN_RESET)
 	{
 		//Note D6
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[1], sample_N[1]*2);
-	  	reset[1] = onesecond;
+		setReset(1);
 	}
-	else if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_5) == GPIO_PIN_RESET)
+	if(E6 == GPIO_PIN_RESET)
 	{
 		//Note E6
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
-	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[2], sample_N[2]*2);
-	  	reset[2] = onesecond;
+		setReset(2);
 	}
-	else if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_6) == GPIO_PIN_RESET)
+	if(F6 == GPIO_PIN_RESET)
 	{
 		//Note F6
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[3], sample_N[3]*2);
-	  	reset[3] = onesecond;
+		setReset(3);
 	}
-	else if(HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_8) == GPIO_PIN_RESET)
+	if(G6 == GPIO_PIN_RESET)
 	{
 		//Note G6
-		//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[4], sample_N[4]*2);
-	  	reset[4] = onesecond;
+		setReset(4);
 	}
-	else if(HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_9) == GPIO_PIN_RESET)
+	if(A6 == GPIO_PIN_RESET)
 	{
 		//Note A6
-		//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[5], sample_N[5]*2);
-	  	reset[5] = onesecond;
+		setReset(5);
 	}
-	else if(HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_10) == GPIO_PIN_RESET)
+	if(H6 == GPIO_PIN_RESET)
 	{
 		//Note H6
-		//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[6], sample_N[6]*2);
-	  	reset[6] = onesecond;
+		setReset(6);
 	}
-	else if(HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_11) == GPIO_PIN_RESET)
+	if(C7 == GPIO_PIN_RESET)
 	{
 		//Note C7
-		//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[7], sample_N[7]*2);
-	  	reset[7] = onesecond;
-	}
-	//else
-		//HAL_I2S_DMAStop(&hi2s3);
+		setReset(7);
 	}
 }
 
@@ -200,12 +332,32 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)//Turns the sound on
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	int fout[OCTAVE] = {1047,1175,1319,1397,1568,1760,1976,2093};
-		generate_samples(fout);
+	int notes[8] = {1047,1175,1319,1397,1568,1760,1976,2093};
   for(int i=0;i<8;i++)
   {
 	  reset[i]=0;
   }
+  oldNotes[0] = oldNotes[1] = -1;
+  resetNotes[0] = resetNotes[1] = -1;
+  int toReturn[28];
+  calculateNotes(toReturn, notes);
+  int fout[OCTAVE];
+  for(int i=0;i<8;i++){
+	  fout[i]=notes[i];
+  }
+  int j=0;
+  for(int i=8;i<OCTAVE;i++){
+  	  fout[i]=toReturn[j];
+  	  j++;
+    }
+
+  generate_samples(fout);
+
+
+
+
+
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
