@@ -9,11 +9,11 @@ Schematic:
 
 Project contains interruption service on pins PE0-PE7. Sound is generated using CS43L22 module. Every note is a composition of three sine waves. Their frequencies referens to their first harmonics.
 ## Tools
-STM32F4407VG Discovery Microcontroller
-8 Laser diodes
-8 Fototransistors
-Cables
-Wires
+- STM32F4407VG Discovery Microcontroller
+- 8 Laser diodes
+- 8 Fototransistors
+- Cables
+- Wires
 
 ## How to run
 Connect all required tools as table below says:
