@@ -62,7 +62,6 @@ uint16_t sample_N[OCTAVE];
 int16_t dataI2S[OCTAVE][100];
 int reset[8];	// when equals 0 turns of sound
 int onesecond = 300; // 100/100Hz
-int playing = 0;
 int oldNotes[2];
 int resetNotes[2];
 #define C6 (HAL_GPIO_ReadPin(GPIOE,GPIO_PIN_3))
@@ -85,9 +84,8 @@ static void MX_I2S3_Init(void);
 static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-void generate_samples(int fout[OCTAVE])
+void generate_samples(int fout[OCTAVE])	// generates sinus waves
 {
-
 	for(int k =0; k<OCTAVE; k++)
 	  {
 		sample_dt = fout[k]/F_SAMPLE;
@@ -99,13 +97,9 @@ void generate_samples(int fout[OCTAVE])
 	  		dataI2S[k][i*2 + 1] =(mySinVal )*8000; //Left data  (1 3 5 7 9 11 13)
 	  	}
 	  }
-
 }
 
-
-
-
-void calculateNotes(int toReturn[28], int fout[OCTAVE])
+void calculateNotes(int toReturn[28], int fout[OCTAVE])	// estimate combination of notes
 {
 	int x=0;
 	for(int j =0; j<8; j++) //calculates 28 combinations of notes
@@ -115,58 +109,11 @@ void calculateNotes(int toReturn[28], int fout[OCTAVE])
 				toReturn[x++]=abs(fout[j]-fout[k]);
 			}
 	}
-	/*
-
-	toReturn[X]=abs(fout[Y]-fout[Z]);
-
-
-	toReturn[0]=abs(fout[0]-fout[1]);
-	toReturn[1]=abs(fout[0]-fout[2]);
-	toReturn[2]=abs(fout[0]-fout[3]);
-	toReturn[3]=abs(fout[0]-fout[4]);
-	toReturn[4]=abs(fout[0]-fout[5]);
-	toReturn[5]=abs(fout[0]-fout[6]);
-	toReturn[6]=abs(fout[0]-fout[7]);
-
-	toReturn[7]=abs(fout[1]-fout[2]);
-	toReturn[8]=abs(fout[1]-fout[3]);
-	toReturn[9]=abs(fout[1]-fout[4]);
-	toReturn[10]=abs(fout[1]-fout[5]);
-	toReturn[11]=abs(fout[1]-fout[6]);
-	toReturn[12]=abs(fout[1]-fout[7]);
-
-
-	toReturn[13]=abs(fout[2]-fout[3]);
-	toReturn[14]=abs(fout[2]-fout[4]);
-	toReturn[15]=abs(fout[2]-fout[5]);
-	toReturn[16]=abs(fout[2]-fout[6]);
-	toReturn[17]=abs(fout[2]-fout[7]);
-
-	toReturn[18]=abs(fout[3]-fout[4]);
-	toReturn[19]=abs(fout[3]-fout[5]);
-	toReturn[20]=abs(fout[3]-fout[6]);
-	toReturn[21]=abs(fout[3]-fout[7]);
-
-
-	toReturn[22]=abs(fout[4]-fout[5]);
-	toReturn[23]=abs(fout[4]-fout[6]);
-	toReturn[24]=abs(fout[4]-fout[7]);
-
-
-	toReturn[25]=abs(fout[5]-fout[6]);
-	toReturn[26]=abs(fout[5]-fout[7]);
-
-
-	toReturn[27]=abs(fout[6]-fout[7]);
-
-*/
-
-
 }
 
-int calculateNoteCobination(int note1, int note2)
+int calculateNoteCobination(int note1, int note2) // returns index of combined notes
 {
-	if(note1>note2)
+	if(note1>note2)	// swaps notes
 	{
 		note1 = note1^note2;
 		note2 = note2^note1;
@@ -202,14 +149,14 @@ int calculateNoteCobination(int note1, int note2)
 	}
 }
 
-void switchNotes(int note1, int note2)
+void switchNotes(int note1, int note2)	// switch current notes
 {
 	HAL_I2S_DMAStop(&hi2s3);
-	if(note2 < 0 && note1>=0)
+	if(note2 < 0 && note1>=0)	// if only one note is playing
 	{
 		HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[note1], sample_N[note1]*2);
 	}
-	else if(note1>=0 && note2>=0)
+	else if(note1>=0 && note2>=0)	// if two notes is playing
 	{
 	  	HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S[calculateNoteCobination(note1, note2)],
 	  			sample_N[calculateNoteCobination(note1, note2)]*2);
@@ -227,14 +174,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 	{
 		for(int i = 0; i < 8; i++)
 		{
-			if(reset[i]>=0)
+			if(reset[i]>=0)	// counts down time, when note should stop playing
 			{
 				reset[i]--;
 			}
 		}
 		for(int i = 0; i < 8; i++)
 		{
-				if(reset[i] < 0)
+				if(reset[i] < 0) // when note should stop playing
 				{
 					if(resetNotes[0] == i)
 					{
@@ -254,7 +201,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 					}
 				}
 			}
-		if ((oldNotes[0]!=resetNotes[0]) || (oldNotes[1]!=resetNotes[1]))
+		if ((oldNotes[0]!=resetNotes[0]) || (oldNotes[1]!=resetNotes[1])) // switches notes
 		{
 			oldNotes[0] = resetNotes[0];
 			oldNotes[1] = resetNotes[1];
@@ -263,7 +210,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim)
 	}
 }
 
-void setReset(int i)
+void setReset(int i)	// sets reset note after one second
 {
 	if(resetNotes[0] == -1)
 	{
@@ -332,31 +279,26 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)//Turns the sound on
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	int notes[8] = {1047,1175,1319,1397,1568,1760,1976,2093};
-  for(int i=0;i<8;i++)
+	int notes[8] = {1047,1175,1319,1397,1568,1760,1976,2093}; // notes frequency
+  for(int i=0;i<8;i++) 
   {
-	  reset[i]=0;
+	  reset[i] = 0;
   }
-  oldNotes[0] = oldNotes[1] = -1;
+  oldNotes[0] = oldNotes[1] = -1; // turns off notes on start
   resetNotes[0] = resetNotes[1] = -1;
-  int toReturn[28];
-  calculateNotes(toReturn, notes);
+  int calculatedNotes[28];
+  calculateNotes(calculatedNotes, notes); // sets up all combined notes
   int fout[OCTAVE];
   for(int i=0;i<8;i++){
 	  fout[i]=notes[i];
   }
   int j=0;
   for(int i=8;i<OCTAVE;i++){
-  	  fout[i]=toReturn[j];
+  	  fout[i]=calculatedNotes[j];
   	  j++;
     }
 
   generate_samples(fout);
-
-
-
-
-
 
   /* USER CODE END 1 */
 
